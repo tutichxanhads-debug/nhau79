@@ -1780,6 +1780,7 @@ function AdminTables({ config, setConfig, orders, showToast }) {
 }
 
 function AdminMenu({ config, setConfig, showToast }) {
+  const [activeCategory, setActiveCategory] = useState(MENU_GROUPS[0]);
   const [editing, setEditing] = useState(null); // item being edited/created
   const [uploading, setUploading] = useState(false);
   const origImageRef = useRef(null); // ảnh đã lưu của món đang sửa (để biết ảnh nào là "mới tải, chưa lưu")
@@ -1791,7 +1792,7 @@ function AdminMenu({ config, setConfig, showToast }) {
     origImageRef.current = item.image || null;
     setEditing({ ...item });
   };
-  const startNew = () => openEditing({ id: null, name: "", category: categories[0] || "", price: 0, emoji: "🍽️", available: true, spicy: false });
+  const startNew = () => openEditing({ id: null, name: "", category: activeCategory, price: 0, emoji: "🍽️", available: true, spicy: false });
 
   // Ảnh vừa tải lên trong phiên sửa này mà không được lưu thì xoá luôn, không để rác trong kho ảnh.
   const discardUnsavedImage = (url) => {
@@ -1851,6 +1852,7 @@ function AdminMenu({ config, setConfig, showToast }) {
     });
     // ảnh cũ đã được thay / bỏ → dọn khỏi kho
     if (origImageRef.current && origImageRef.current !== toSave.image) removeMenuImage(origImageRef.current);
+    setActiveCategory(toSave.category);
     setEditing(null);
     showToast("Đã lưu món ăn");
   };
@@ -1870,8 +1872,30 @@ function AdminMenu({ config, setConfig, showToast }) {
         <Btn size="sm" onClick={startNew}><PlusCircle size={14} /> Thêm món</Btn>
       </div>
 
-      <div className="space-y-6">
+      <div className="flex flex-wrap gap-2 mb-4" role="tablist" aria-label="Nhóm thực đơn">
         {categories.map((category) => (
+          <button
+            key={category}
+            type="button"
+            role="tab"
+            id={`admin-menu-tab-${categories.indexOf(category)}`}
+            aria-selected={activeCategory === category}
+            aria-controls="admin-menu-panel"
+            onClick={() => setActiveCategory(category)}
+            className="qn-focus rounded-lg px-3.5 py-2 text-sm font-semibold"
+            style={{
+              background: activeCategory === category ? C.gold : C.surface,
+              color: activeCategory === category ? "#1B1410" : C.muted,
+              border: `1px solid ${activeCategory === category ? C.gold : C.line}`,
+            }}
+          >
+            {category} ({menu.filter((m) => m.category === category).length})
+          </button>
+        ))}
+      </div>
+
+      <div id="admin-menu-panel" role="tabpanel" aria-labelledby={`admin-menu-tab-${categories.indexOf(activeCategory)}`}>
+        {categories.filter((category) => category === activeCategory).map((category) => (
           <section key={category} aria-label={category}>
             <h2 className="qn-display text-lg font-semibold mb-3" style={{ color: C.gold }}>
               {category} <span className="text-sm" style={{ color: C.muted }}>({menu.filter((m) => m.category === category).length} món)</span>

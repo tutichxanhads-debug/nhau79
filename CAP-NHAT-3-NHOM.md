@@ -4,7 +4,7 @@
 2. Món lẩu - nướng
 3. Đồ uống
 
-Trang khách có 3 nút chọn nhóm. Trang quản trị hiển thị 3 phần và cho chọn đúng 3 nhóm khi thêm/sửa món.
+Trang khách có 3 nút chọn nhóm. Trang quản trị có 3 nút chọn nhóm với số lượng món; chỉ hiển thị nhóm đang chọn để danh sách ngắn hơn. Khi thêm món mới, danh mục mặc định là nhóm đang chọn. Khi lưu món sang nhóm khác, trang tự chuyển sang nhóm đó. Có thể chọn đúng 3 nhóm khi thêm/sửa món.
 
 Món đang lưu ở Món nhậu, Món chiên, Món xào sẽ vào phần 1. Món nướng và Canh - Lẩu vào phần 2. Đồ uống vào phần 3. Việc chuyển nhóm giữ nguyên mã món, tên, giá, ảnh và trạng thái. Các mục gọi thêm đã lưu trong Canh - Lẩu tiếp tục nằm trong phần 2.
 
