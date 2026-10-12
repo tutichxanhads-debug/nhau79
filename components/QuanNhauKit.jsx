@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { MENU_GROUPS, normalizeMenuGroups } from "@/lib/menuGroups.mjs";
 import {
   Beer, Utensils, ClipboardList, ShoppingCart, Plus, Minus, Trash2, Check,
   X, TrendingUp, Users, Table2, ChefHat, Receipt, Send, Clock, CheckCircle2,
@@ -55,7 +56,7 @@ const APP_LOGO = process.env.NEXT_PUBLIC_APP_LOGO === "none" ? "" : process.env.
 /* ============================================================================
    DEFAULT DATA
 ============================================================================ */
-const DEFAULT_CATEGORIES = ["Món nhậu", "Món chiên", "Món nướng", "Món xào", "Canh - Lẩu", "Đồ uống"];
+const DEFAULT_CATEGORIES = MENU_GROUPS;
 
 const DEFAULT_MENU = [
   { id: uid(), name: "Gỏi khô bò", category: "Món nhậu", price: 65000, emoji: "🥗", available: true, spicy: false },
@@ -87,7 +88,7 @@ const DEFAULT_STAFF = [
 
 const DEFAULT_CONFIG = {
   categories: DEFAULT_CATEGORIES,
-  menu: DEFAULT_MENU,
+  menu: normalizeMenuGroups({ menu: DEFAULT_MENU }).menu,
   tables: DEFAULT_TABLES,
   staff: DEFAULT_STAFF,
   pin: "1947",
@@ -163,7 +164,7 @@ function useSharedState(key, initialValue, pollMs) {
     try {
       const { data: row, error } = await supabase.from("app_state").select("value").eq("key", key).maybeSingle();
       if (error) throw error;
-      if (row && row.value) setData(row.value);
+      if (row && row.value) setData(key === "qn-config" ? normalizeMenuGroups(row.value) : row.value);
       else {
         await supabase.from("app_state").upsert({ key, value: initialValue });
         setData(initialValue);
@@ -179,7 +180,8 @@ function useSharedState(key, initialValue, pollMs) {
   const save = useCallback(
     async (updater) => {
       setData((prev) => {
-        const next = typeof updater === "function" ? updater(prev) : updater;
+        const updated = typeof updater === "function" ? updater(prev) : updater;
+        const next = key === "qn-config" ? normalizeMenuGroups(updated) : updated;
         savingRef.current = true;
         supabase
           .from("app_state")
@@ -205,7 +207,7 @@ function useSharedState(key, initialValue, pollMs) {
         { event: "*", schema: "public", table: "app_state", filter: `key=eq.${key}` },
         (payload) => {
           if (savingRef.current) return;
-          if (payload.new && payload.new.value) setData(payload.new.value);
+          if (payload.new && payload.new.value) setData(key === "qn-config" ? normalizeMenuGroups(payload.new.value) : payload.new.value);
         }
       )
       .subscribe();
@@ -723,14 +725,14 @@ function CustomerApp({ tableId, navigate }) {
   const [sending, setSending] = useState(false);
   const pendingOrderRef = useRef(null); // { sig, order } — gửi lại sau lỗi mạng dùng CÙNG mã => không tạo đơn đôi
   const [busyItem, setBusyItem] = useState(null);
-  const [activeCat, setActiveCat] = useState("Tất cả");
+  const [activeCat, setActiveCat] = useState(MENU_GROUPS[0]);
   const [cart, setCart] = useState({}); // menuItemId -> {qty, note}
   const [showCart, setShowCart] = useState(false);
   const [tab, setTab] = useState("menu"); // menu | orders
 
   const table = (config.tables || []).find((t) => t.id === tableId);
-  const categories = ["Tất cả", ...(config.categories || [])];
-  const menu = (config.menu || []).filter((m) => m.available && (activeCat === "Tất cả" || m.category === activeCat));
+  const categories = MENU_GROUPS;
+  const menu = (config.menu || []).filter((m) => m.available && m.category === activeCat);
 
   const cartItems = Object.entries(cart)
     .filter(([, v]) => v.qty > 0)
@@ -1783,7 +1785,7 @@ function AdminMenu({ config, setConfig, showToast }) {
   const origImageRef = useRef(null); // ảnh đã lưu của món đang sửa (để biết ảnh nào là "mới tải, chưa lưu")
   const fileRef = useRef(null);
   const menu = config.menu || [];
-  const categories = config.categories || [];
+  const categories = MENU_GROUPS;
 
   const openEditing = (item) => {
     origImageRef.current = item.image || null;
@@ -1868,8 +1870,14 @@ function AdminMenu({ config, setConfig, showToast }) {
         <Btn size="sm" onClick={startNew}><PlusCircle size={14} /> Thêm món</Btn>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {menu.map((m) => (
+      <div className="space-y-6">
+        {categories.map((category) => (
+          <section key={category} aria-label={category}>
+            <h2 className="qn-display text-lg font-semibold mb-3" style={{ color: C.gold }}>
+              {category} <span className="text-sm" style={{ color: C.muted }}>({menu.filter((m) => m.category === category).length} món)</span>
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {menu.filter((m) => m.category === category).map((m) => (
           <Card key={m.id} className="p-3.5 flex gap-3">
             <div className="rounded-lg flex items-center justify-center shrink-0 overflow-hidden" style={{ width: 56, height: 56, fontSize: 24, background: C.surfaceHi, opacity: m.available ? 1 : 0.4 }}>
               {m.image ? <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" /> : m.emoji}
@@ -1887,6 +1895,12 @@ function AdminMenu({ config, setConfig, showToast }) {
               </div>
             </div>
           </Card>
+        ))}
+            </div>
+            {!menu.some((m) => m.category === category) && (
+              <p className="text-sm" style={{ color: C.mutedDim }}>Chưa có món trong nhóm này.</p>
+            )}
+          </section>
         ))}
       </div>
 
